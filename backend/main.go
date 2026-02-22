@@ -1,3 +1,5 @@
+//go:build !ec2
+
 package main
 
 import (
