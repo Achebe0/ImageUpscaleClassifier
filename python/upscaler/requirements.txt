@@ -1,0 +1,12 @@
+# VisionCloud Upscaler - PyTorch Requirements
+# For image upscaling using PyTorch models
+
+torch>=2.0.0
+torchvision>=0.15.0
+opencv-python>=4.8.0
+numpy>=1.24.3
+pillow>=10.0.0
+
+# Optional: For advanced upscaling models
+# realesrgan>=0.3.0
+# basicsr>=1.4.2

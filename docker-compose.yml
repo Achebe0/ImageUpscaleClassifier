@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Go Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: visioncloud-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - S3_BUCKET=${S3_BUCKET:-visioncloud-bucket}
+      - QUALITY_THRESHOLD=${QUALITY_THRESHOLD:-0.5}
+      - UPSCALE_SCALE=${UPSCALE_SCALE:-2}
+      - UPSCALE_SCRIPT=/app/python/upscaler/upscale.py
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    volumes:
+      - ./python/upscaler:/app/python/upscaler
+    networks:
+      - visioncloud
+    restart: unless-stopped
+
+networks:
+  visioncloud:
+    driver: bridge

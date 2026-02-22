@@ -20,3 +20,11 @@ type ErrorResponse struct {
 type HealthResponse struct {
 	Status string `json:"status"`
 }
+
+type ProcessingStatus struct {
+	Status       string  `json:"status"`        // success, skipped, error
+	Folder       string  `json:"folder"`        // good_quality, upscaled, couldn't_upscale
+	QualityScore float64 `json:"quality_score"`
+	S3URL        string  `json:"s3_url,omitempty"`
+	Error        string  `json:"error,omitempty"`
+}
