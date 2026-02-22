@@ -1,0 +1,53 @@
+.health-status {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.status-indicator.healthy {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-indicator.unhealthy {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.status-indicator.loading {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary-color);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-indicator.healthy .status-dot {
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.loading .status-dot {
+  animation: pulse 1s infinite;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .health-status {
+    justify-content: center;
+  }
+}
