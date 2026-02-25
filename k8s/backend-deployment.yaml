@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: visioncloud-backend
+  namespace: visioncloud
+  labels:
+    app: visioncloud-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: visioncloud-backend
+  template:
+    metadata:
+      labels:
+        app: visioncloud-backend
+    spec:
+      containers:
+      - name: backend
+        image: visioncloud-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: visioncloud-config
+              key: AWS_REGION
+        - name: S3_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: visioncloud-config
+              key: S3_BUCKET
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: visioncloud-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: visioncloud-secrets
+              key: AWS_SECRET_ACCESS_KEY
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5

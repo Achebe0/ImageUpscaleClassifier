@@ -1,9 +1,8 @@
-//go:build !ec2
-
 package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,23 +10,25 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/gorilla/mux"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 
-	appConfig "visioncloud/config"
+	appconfig "visioncloud/config"
 	"visioncloud/handlers"
 	"visioncloud/services"
 )
 
 func main() {
 	// Load configuration
-	cfg := appConfig.LoadConfig()
-	log.Printf("Starting VisionCloud server on port %s", cfg.Port)
+	cfg := appconfig.LoadConfig()
 
 	// Initialize AWS configuration
-	awsCfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(cfg.AWSRegion))
+	ctx := context.Background()
+
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx,
+		awsconfig.WithRegion(cfg.AWSRegion),
+	)
 	if err != nil {
-		log.Fatalf("Failed to load AWS config: %v", err)
+		log.Fatalf("unable to load AWS SDK config: %v", err)
 	}
 
 	// Initialize services
@@ -40,68 +41,69 @@ func main() {
 		cfg.UpscaleScale,
 	)
 
-	log.Printf("Quality threshold: %.2f", cfg.QualityThreshold)
-	log.Printf("Upscale script: %s", cfg.UpscaleScript)
-	log.Printf("Upscale scale: %dx", cfg.UpscaleScale)
-	log.Printf("S3 bucket: %s", cfg.S3Bucket)
-
 	// Initialize handlers
 	imageHandler := handlers.NewImageHandler(orchestrator)
 
-	// Setup routes
-	router := mux.NewRouter()
+	// Set up router with CORS
+	mux := http.NewServeMux()
 
-	// CORS middleware
-	router.Use(corsMiddleware)
+	// Register routes
+	mux.HandleFunc("/api/images/upload", imageHandler.UploadImage)
+	mux.HandleFunc("/api/images/", imageHandler.GetImage)
+	mux.HandleFunc("/api/images/list/", imageHandler.ListProcessed)
+	mux.HandleFunc("/api/health", imageHandler.HealthCheck)
 
-	// Health check
-	router.HandleFunc("/api/health", imageHandler.HealthCheck).Methods("GET")
+	// Wrap with CORS middleware
+	handler := withCORS(mux)
 
-	// Image endpoints
-	router.HandleFunc("/api/images/upload", imageHandler.UploadImage).Methods("POST")
-	router.HandleFunc("/api/images/list/{folder}", imageHandler.ListProcessed).Methods("GET")
-	router.HandleFunc("/api/images/{folder}/{filename}", imageHandler.GetImage).Methods("GET")
-
-	// Create HTTP server
+	// Create server
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Handler:      handler,
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Start server in a goroutine
+	// Start server in goroutine
 	go func() {
-		log.Printf("Server listening on %s", server.Addr)
+		log.Printf("Starting VisionCloud server on port %s", cfg.Port)
+		log.Printf("Health check available at http://localhost:%s/api/health", cfg.Port)
+		log.Printf("Upload endpoint available at http://localhost:%s/api/images/upload", cfg.Port)
+
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
-	// Graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
 	log.Println("Shutting down server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	// Graceful shutdown with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server shutdown error: %v", err)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	log.Println("Server stopped")
+	fmt.Println("VisionCloud server exited")
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
+// withCORS adds CORS headers to all responses
+func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-		if r.Method == http.MethodOptions {
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}

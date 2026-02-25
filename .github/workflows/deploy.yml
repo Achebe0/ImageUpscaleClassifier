@@ -1,0 +1,82 @@
+name: VisionCloud CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  AWS_REGION: ca-central-1
+  ECR_REPOSITORY_BACKEND: visioncloud-backend
+  ECR_REPOSITORY_FRONTEND: visioncloud-frontend
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+        
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm ci
+        npm run build
+        
+    - name: Test Backend
+      run: |
+        cd backend
+        go mod download
+        go build -v ./...
+        
+    - name: Build Docker Images
+      run: |
+        docker build -t visioncloud-backend ./backend
+        docker build -t visioncloud-frontend ./frontend
+
+  deploy-aws:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
+        
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+      
+    - name: Build, tag, and push images to ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        # Build and push backend
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:${{ github.sha }} ./backend
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:${{ github.sha }}
+        
+        # Build and push frontend
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:${{ github.sha }} ./frontend
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:${{ github.sha }}
+        
+    - name: Deploy to ECS
+      run: |
+        echo "Deploying to ECS..."
+        # Add ECS deployment commands here

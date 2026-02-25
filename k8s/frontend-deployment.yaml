@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: visioncloud-frontend
+  namespace: visioncloud
+  labels:
+    app: visioncloud-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: visioncloud-frontend
+  template:
+    metadata:
+      labels:
+        app: visioncloud-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: visioncloud-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: VITE_API_URL
+          value: "http://visioncloud-backend:8080"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

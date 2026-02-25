@@ -1,0 +1,14 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "frontend/Dockerfile"
+
+[deploy]
+startCommand = "serve -s dist -l 3000"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[environments]
+  [environments.production]
+    numReplicas = 1
