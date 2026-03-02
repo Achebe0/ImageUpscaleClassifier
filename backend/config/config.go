@@ -1,10 +1,10 @@
 package config
 
 import (
-	"os"
-	"strconv"
 	"log"
+	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type Config struct {
@@ -24,7 +24,7 @@ func init() {
 
 func loadEnvFile() {
 	envPath := ".env"
-	
+
 	// Try current directory first
 	if _, err := os.Stat(envPath); err != nil {
 		// Try parent directory
@@ -42,7 +42,7 @@ func loadEnvFile() {
 		// .env file not found, that's okay
 		return
 	}
-	
+
 	loadDotEnv(envPath)
 }
 
@@ -61,7 +61,7 @@ func loadDotEnv(path string) {
 		if n == 0 || err != nil {
 			break
 		}
-		
+
 		lines := string(buf[:n])
 		parseDotEnvLines(lines)
 	}
@@ -73,7 +73,7 @@ func parseDotEnvLines(content string) {
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		
+
 		parts := splitKeyValue(line)
 		if len(parts) == 2 {
 			key := parts[0]

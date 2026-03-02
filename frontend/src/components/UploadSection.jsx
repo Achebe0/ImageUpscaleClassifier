@@ -55,11 +55,11 @@ const UploadSection = () => {
   const getStatusBadge = (status, folder) => {
     if (status === 'success') {
       if (folder === 'good_quality') {
-        return <span className="badge badge-success">Good Quality ✓</span>;
+        return <span className="badge badge-success">Good Quality </span>;
       }
-      return <span className="badge badge-success">Upscaled ✓</span>;
+      return <span className="badge badge-success">Upscaled </span>;
     }
-    return <span className="badge badge-error">Failed ✗</span>;
+    return <span className="badge badge-error">Failed </span>;
   };
 
   return (
